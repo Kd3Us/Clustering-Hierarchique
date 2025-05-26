@@ -14,11 +14,6 @@ from matplotlib.colors import ListedColormap
 import warnings
 warnings.filterwarnings('ignore')
 
-# Configuration pour les visualisations
-plt.style.use('default')
-colors = ['#ff9999', '#66b3ff', '#99ff99', '#ffcc99', '#c2c2f0', '#ffb3e6', '#c4e17f']
-custom_cmap = ListedColormap(colors)
-
 print("Démonstration du Clustering Hiérarchique sur des confessions Reddit")
 
 def clean_text(text):
@@ -26,7 +21,6 @@ def clean_text(text):
         return ""
     text = str(text).lower()
     text = re.sub(r'[^\w\s]', '', text)
-    # Tokenisation simple par espace
     tokens = text.split()
     stop_words = {"i", "me", "my", "myself", "we", "our", "ours", "ourselves", "you", "your", "yours", 
                   "yourself", "yourselves", "he", "him", "his", "himself", "she", "her", "hers", "herself", 
@@ -40,7 +34,6 @@ def clean_text(text):
                   "both", "each", "few", "more", "most", "other", "some", "such", "no", "nor", "not", "only", 
                   "own", "same", "so", "than", "too", "very", "s", "t", "can", "will", "just", "don", "don't", 
                   "should", "now"}
-    # Filtrage des stopwords
     filtered_tokens = [word for word in tokens if word not in stop_words]
     return ' '.join(filtered_tokens)
 
@@ -57,22 +50,18 @@ df = df[~df['selftext'].isin(['[removed]', '[deleted]', None, ''])]
 print(f"Après filtrage: {len(df)} confessions valides")
 
 sample_size = 50
-np.random.seed(42)  # Pour la reproductibilité
+np.random.seed(42)
 sample_df = df.sample(sample_size)
 print(f"Échantillon pour la démonstration: {sample_size} confessions")
 
 # Nettoyage des textes
 print("Nettoyage des textes...")
 sample_df['clean_text'] = sample_df['selftext'].apply(clean_text)
-
 sample_df['short_title'] = sample_df['title'].apply(lambda x: x[:30] + '...' if len(x) > 30 else x)
-
 sample_df = sample_df.reset_index(drop=True)
 
 # 2. VECTORISATION DES TEXTES
 print("\nÉtape 2: Vectorisation des textes avec TF-IDF")
-print("----------------------------------------------")
-
 vectorizer = TfidfVectorizer(max_features=100, min_df=2, stop_words='english')
 X = vectorizer.fit_transform(sample_df['clean_text'])
 X_dense = X.toarray()
@@ -83,178 +72,251 @@ similarity = cosine_similarity(X)
 distance = 1 - similarity
 print("Matrice de distance calculée!")
 
-# 3. VISUALISATION DU DENDROGRAMME
-print("\nÉtape 3: Création du dendrogramme")
-print("----------------------------------------------")
-
-# Calcul du linkage pour le dendrogramme
+# 3. CLUSTERING AUTOMATIQUE (non supervisé)
+print("\nÉtape 3: Clustering hiérarchique automatique")
 Z = linkage(distance, method='ward')
 
-plt.figure(figsize=(15, 8))
-dendrogram(
+# Détermination automatique du nombre de clusters optimal
+from scipy.cluster.hierarchy import cophenet
+from scipy.spatial.distance import squareform
+
+# Test différents nombres de clusters
+silhouette_scores = []
+max_clusters = min(10, sample_size//2)
+
+for n_clusters in range(2, max_clusters):
+    cluster_labels = fcluster(Z, n_clusters, criterion='maxclust')
+    
+    # Calculer un score de qualité simple basé sur la cohésion intra-cluster
+    cluster_distances = []
+    for cluster_id in range(1, n_clusters + 1):
+        cluster_indices = np.where(cluster_labels == cluster_id)[0]
+        if len(cluster_indices) > 1:
+            cluster_dist = distance[np.ix_(cluster_indices, cluster_indices)]
+            cluster_distances.append(np.mean(cluster_dist))
+    
+    if cluster_distances:
+        silhouette_scores.append(np.mean(cluster_distances))
+    else:
+        silhouette_scores.append(float('inf'))
+
+# Choisir le nombre optimal de clusters
+optimal_clusters = np.argmin(silhouette_scores) + 2
+print(f"Nombre optimal de clusters déterminé automatiquement: {optimal_clusters}")
+
+# Obtenir les clusters finaux
+final_clusters = fcluster(Z, optimal_clusters, criterion='maxclust')
+sample_df['cluster'] = final_clusters
+
+# 4. CRÉATION DU DENDROGRAMME AVEC HEATMAP DES MOTS-CLÉS
+print("\nÉtape 4: Création du dendrogramme complet avec heatmap des mots")
+
+# Extraire les mots caractéristiques pour chaque cluster
+feature_names = vectorizer.get_feature_names_out()
+top_words_per_cluster = {}
+n_top_words = 10
+
+# Créer une matrice des mots les plus importants par cluster
+cluster_word_matrix = np.zeros((optimal_clusters, n_top_words))
+word_labels = []
+
+for cluster_id in range(1, optimal_clusters + 1):
+    cluster_mask = sample_df['cluster'] == cluster_id
+    
+    if cluster_mask.sum() > 0:
+        cluster_indices = np.where(cluster_mask)[0]
+        cluster_vectors = X[cluster_indices]
+        cluster_tfidf_mean = cluster_vectors.mean(axis=0)
+        cluster_tfidf = np.asarray(cluster_tfidf_mean).flatten()
+        
+        # Obtenir les indices des mots les plus importants
+        top_indices = cluster_tfidf.argsort()[-n_top_words:][::-1]
+        top_words = [feature_names[idx] for idx in top_indices]
+        top_scores = cluster_tfidf[top_indices]
+        
+        # Stocker pour la heatmap
+        cluster_word_matrix[cluster_id-1, :] = top_scores
+        
+        # Stocker les mots pour les labels (seulement pour le premier cluster pour éviter la répétition)
+        if cluster_id == 1:
+            word_labels = top_words
+        
+        top_words_per_cluster[cluster_id] = list(zip(top_words, top_scores))
+
+# Création de la figure avec deux sous-graphiques
+fig = plt.figure(figsize=(20, 12))
+
+# Créer une grille pour organiser les sous-graphiques
+gs = fig.add_gridspec(1, 2, width_ratios=[3, 1], wspace=0.05)
+
+# Sous-graphique 1: Dendrogramme
+ax1 = fig.add_subplot(gs[0])
+dend = dendrogram(
     Z,
-    labels=sample_df['short_title'].values,
+    labels=[f"Cluster_{cluster}" for cluster in final_clusters],
     leaf_rotation=90,
-    leaf_font_size=8,
-    color_threshold=0.7*max(Z[:,2])  # Coloration des clusters
+    leaf_font_size=10,
+    ax=ax1,
+    color_threshold=0.7*max(Z[:,2])
 )
-plt.title('Dendrogramme du Clustering Hiérarchique des Confessions Reddit', fontsize=16)
-plt.xlabel('Confessions', fontsize=12)
-plt.ylabel('Distance', fontsize=12)
+ax1.set_title('Dendrogramme Hiérarchique des Confessions Reddit', fontsize=16, pad=20)
+ax1.set_xlabel('Clusters', fontsize=12)
+ax1.set_ylabel('Distance', fontsize=12)
+
+# Sous-graphique 2: Heatmap des mots-clés
+ax2 = fig.add_subplot(gs[1])
+
+# Créer la heatmap avec les mots les plus fréquents par cluster
+im = ax2.imshow(cluster_word_matrix, cmap='YlOrRd', aspect='auto')
+
+# Configurer les labels
+ax2.set_xticks(range(n_top_words))
+ax2.set_xticklabels([f"Mot {i+1}" for i in range(n_top_words)], rotation=45, ha='right')
+ax2.set_yticks(range(optimal_clusters))
+ax2.set_yticklabels([f"Cluster {i+1}" for i in range(optimal_clusters)])
+
+# Ajouter une colorbar
+plt.colorbar(im, ax=ax2, shrink=0.8, label='Score TF-IDF')
+
+ax2.set_title('Mots Caractéristiques\npar Cluster', fontsize=14, pad=20)
+ax2.set_xlabel('Top Mots', fontsize=12)
+
+# Ajout des valeurs dans la heatmap
+for i in range(optimal_clusters):
+    for j in range(n_top_words):
+        if cluster_word_matrix[i, j] > 0:
+            text = ax2.text(j, i, f'{cluster_word_matrix[i, j]:.3f}',
+                           ha="center", va="center", color="black", fontsize=8)
+
 plt.tight_layout()
-plt.savefig('dendrogram.png', dpi=300, bbox_inches='tight')
-print("Dendrogramme créé et enregistré comme 'dendrogram.png'")
+plt.savefig('dendrogramme_1.png', dpi=300, bbox_inches='tight')
+print("Dendrogramme complet créé et enregistré comme 'dendrogramme_1.png'")
 
-# 4. COMPARAISON DES MÉTHODES DE LIAISON
-print("\nÉtape 4: Comparaison des différentes méthodes de liaison")
-print("----------------------------------------------")
+# 5. CRÉATION D'UNE VERSION ALTERNATIVE AVEC LES VRAIS MOTS AFFICHÉS
+print("\nÉtape 5: Création d'une version avec les mots réels affichés")
 
-methods = ['single', 'complete', 'average', 'ward']
-fig, axes = plt.subplots(2, 2, figsize=(15, 10))
-axes = axes.flatten()
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(22, 12), 
+                               gridspec_kw={'width_ratios': [3, 2], 'wspace': 0.1})
 
-for i, method in enumerate(methods):
-    Z = linkage(distance, method=method)
-    dendrogram(Z, ax=axes[i], labels=None, color_threshold=0.7*max(Z[:,2]))
-    axes[i].set_title(f'Méthode: {method}', fontsize=14)
-    if i >= 2:  # Ajouter les labels x seulement pour les graphiques du bas
-        axes[i].set_xlabel('Index des confessions', fontsize=10)
-    axes[i].set_ylabel('Distance', fontsize=10)
+# Dendrogramme
+dend = dendrogram(
+    Z,
+    labels=[f"Cluster_{cluster}" for cluster in final_clusters],
+    leaf_rotation=90,
+    leaf_font_size=10,
+    ax=ax1,
+    color_threshold=0.7*max(Z[:,2])
+)
+ax1.set_title('Dendrogramme Hiérarchique', fontsize=16, pad=20)
+ax1.set_xlabel('Clusters', fontsize=12)
+ax1.set_ylabel('Distance', fontsize=12)
 
-plt.tight_layout()
-plt.savefig('linkage_methods.png', dpi=300, bbox_inches='tight')
-print("Comparaison des méthodes de liaison créée et enregistrée comme 'linkage_methods.png'")
+# Table des mots-clés à droite
+ax2.axis('off')
+ax2.set_title('Mots Caractéristiques par Cluster', fontsize=16, pad=20)
 
-# 5. DÉTERMINATION DU NOMBRE OPTIMAL DE CLUSTERS
-print("\nÉtape 5: Détermination du nombre optimal de clusters")
-print("----------------------------------------------")
+# Créer un texte formaté avec les mots-clés
+y_pos = 0.95
+for cluster_id in range(1, optimal_clusters + 1):
+    if cluster_id in top_words_per_cluster:
+        # Titre du cluster
+        ax2.text(0.05, y_pos, f'CLUSTER {cluster_id}:', 
+                fontsize=14, fontweight='bold', transform=ax2.transAxes)
+        y_pos -= 0.05
+        
+        # Mots du cluster
+        words_text = []
+        for word, score in top_words_per_cluster[cluster_id][:8]:  # Top 8 mots
+            words_text.append(f'• {word} ({score:.3f})')
+        
+        words_str = '\n'.join(words_text)
+        ax2.text(0.1, y_pos, words_str, 
+                fontsize=10, transform=ax2.transAxes, verticalalignment='top')
+        
+        y_pos -= 0.15  # Espace entre clusters
 
-max_clusters = 10
-distances = np.arange(1, max_clusters + 1)
-num_clusters = []
+plt.savefig('dendrogramme_2.png', dpi=300, bbox_inches='tight')
+print("Version alternative créée et enregistrée comme 'dendrogramme_2.png'")
 
-for d in distances:
-    clusters = fcluster(Z, t=d, criterion='distance')
-    num_clusters.append(len(np.unique(clusters)))
+# 6. ANALYSE DÉTAILLÉE DES CLUSTERS (non supervisée)
+print("\nÉtape 6: Analyse automatique des clusters")
 
-# Visualisation du nombre de clusters en fonction de la distance de coupure
-plt.figure(figsize=(10, 6))
-plt.plot(distances, num_clusters, marker='o', linestyle='-', linewidth=2, markersize=8)
-plt.grid(True)
-plt.xlabel('Distance de coupure', fontsize=12)
-plt.ylabel('Nombre de clusters', fontsize=12)
-plt.title('Nombre de clusters en fonction de la distance de coupure', fontsize=16)
-plt.xticks(distances)
-plt.savefig('optimal_clusters.png', dpi=300, bbox_inches='tight')
-print("Graphique du nombre optimal de clusters créé et enregistré comme 'optimal_clusters.png'")
+with open('analyse_clusters_complete.txt', 'w', encoding='utf-8') as f:
+    f.write("ANALYSE AUTOMATIQUE DES CLUSTERS DE CONFESSIONS REDDIT\n")
+    f.write("=" * 60 + "\n\n")
+    f.write(f"Nombre de clusters déterminé automatiquement: {optimal_clusters}\n\n")
+    
+    for cluster_id in range(1, optimal_clusters + 1):
+        f.write(f"\nCLUSTER {cluster_id}:\n")
+        f.write("-" * 30 + "\n")
+        
+        cluster_mask = sample_df['cluster'] == cluster_id
+        cluster_confessions = sample_df[cluster_mask]
+        
+        f.write(f"Nombre de confessions: {len(cluster_confessions)}\n\n")
+        
+        f.write("Mots caractéristiques:\n")
+        if cluster_id in top_words_per_cluster:
+            for word, score in top_words_per_cluster[cluster_id]:
+                f.write(f"  {word}: {score:.4f}\n")
+        
+        f.write("\nTitres des confessions:\n")
+        for _, row in cluster_confessions.iterrows():
+            f.write(f"  - {row['title']}\n")
+        
+        f.write("\nExemple de confession:\n")
+        if len(cluster_confessions) > 0:
+            example = cluster_confessions.iloc[0]
+            text = example['selftext']
+            if len(text) > 300:
+                text = text[:300] + "..."
+            f.write(f"{text}\n")
 
-# 6. APPLICATION DU CLUSTERING AVEC UN NOMBRE SPÉCIFIQUE DE CLUSTERS
-print("\nÉtape 6: Application du clustering hiérarchique")
-print("----------------------------------------------")
+print("Analyse complète terminée et enregistrée dans 'analyse_clusters_complete.txt'")
 
-# Définir le nombre de clusters basé sur l'observation du dendrogramme
-n_clusters = 5
-print(f"Nombre de clusters choisi: {n_clusters}")
-
-# Application du clustering hiérarchique
-model = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage='average')
-clusters = model.fit_predict(distance)
-
-sample_df['cluster'] = clusters
-
-cluster_counts = sample_df['cluster'].value_counts().sort_index()
-print("Nombre de confessions par cluster:")
-for cluster_id, count in cluster_counts.items():
-    print(f"  Cluster {cluster_id}: {count} confessions")
-
-# 7. VISUALISATION DES CLUSTERS AVEC T-SNE
-print("\nÉtape 7: Visualisation des clusters avec t-SNE")
-print("----------------------------------------------")
+# 7. VISUALISATION t-SNE DES CLUSTERS AUTOMATIQUES
+print("\nÉtape 7: Visualisation t-SNE des clusters automatiques")
 
 tsne = TSNE(n_components=2, random_state=42, perplexity=min(15, sample_size-1))
 X_tsne = tsne.fit_transform(X_dense)
 
 plt.figure(figsize=(12, 8))
 scatter = plt.scatter(X_tsne[:, 0], X_tsne[:, 1], 
-                     c=clusters, 
-                     cmap=custom_cmap, 
+                     c=final_clusters, 
+                     cmap='tab10', 
                      s=100, 
                      alpha=0.8,
                      edgecolors='w')
 
 # Ajouter les étiquettes des clusters
-for cluster_id in range(n_clusters):
-    cluster_points = X_tsne[clusters == cluster_id]
+for cluster_id in range(1, optimal_clusters + 1):
+    cluster_points = X_tsne[final_clusters == cluster_id]
     if len(cluster_points) > 0:
         centroid = cluster_points.mean(axis=0)
         plt.annotate(f'Cluster {cluster_id}', 
                     xy=(centroid[0], centroid[1]),
-                    xytext=(centroid[0], centroid[1]),
                     fontsize=12, 
                     fontweight='bold',
                     color='black',
-                    ha='center')
+                    ha='center',
+                    bbox=dict(boxstyle="round,pad=0.3", facecolor='white', alpha=0.8))
 
-plt.title('Visualisation des clusters de confessions Reddit avec t-SNE', fontsize=16)
-plt.colorbar(scatter, label='Cluster')
+plt.title('Visualisation t-SNE des Clusters Automatiques', fontsize=16)
+plt.colorbar(scatter, label='Cluster ID')
 plt.grid(True, linestyle='--', alpha=0.7)
 plt.savefig('tsne_clusters.png', dpi=300, bbox_inches='tight')
-print("Visualisation t-SNE créée et enregistrée comme 'tsne_clusters.png'")
+print("Visualisation t-SNE créée et enregistrée comme 'tsne_clusters_automatiques.png'")
 
-# 8. ANALYSE DES CLUSTERS
-print("\nÉtape 8: Analyse des clusters et des mots caractéristiques")
-print("----------------------------------------------")
-
-# Extraction des mots les plus caractéristiques de chaque cluster
-feature_names = vectorizer.get_feature_names_out()
-
-with open('cluster_analysis.txt', 'w', encoding='utf-8') as f:
-    f.write("ANALYSE DES CLUSTERS DE CONFESSIONS REDDIT\n")
-    f.write("========================================\n\n")
-    
-    for cluster_id in range(n_clusters):
-        f.write(f"\nCLUSTER {cluster_id}:\n")
-        f.write("-" * 30 + "\n")
-        
-        cluster_mask = sample_df['cluster'] == cluster_id
-        
-        f.write("\nMots caractéristiques:\n")
-        
-        if cluster_mask.sum() > 0:
-            cluster_indices = np.arange(len(sample_df))[cluster_mask]
-            
-            cluster_vectors = X[cluster_indices]
-            
-            cluster_tfidf_mean = cluster_vectors.mean(axis=0)
-            cluster_tfidf = np.asarray(cluster_tfidf_mean).flatten()
-            
-            top_indices = cluster_tfidf.argsort()[-10:][::-1]
-            
-            for idx in top_indices:
-                if cluster_tfidf[idx] > 0:
-                    f.write(f"  {feature_names[idx]}: {cluster_tfidf[idx]:.4f}\n")
-        
-        f.write("\nTitres des confessions:\n")
-        cluster_confessions = sample_df[cluster_mask]
-        for _, row in cluster_confessions.iterrows():
-            f.write(f"  - {row['title']}\n")
-        
-        f.write("\nExemple de confession:\n")
-        if len(cluster_confessions) > 0:
-            example = cluster_confessions.iloc[cluster_confessions['selftext'].str.len().argmin()]
-            text = example['selftext']
-            if len(text) > 300:
-                text = text[:300] + "..."
-            f.write(f"{text}\n")
-
-print("Analyse des clusters terminée et enregistrée dans 'cluster_analysis.txt'")
-
-print("\nAnalyse terminée avec succès!")
-print("=================================================================")
+print("\n" + "="*70)
+print("ANALYSE TERMINÉE AVEC SUCCÈS!")
+print("="*70)
 print("Fichiers générés:")
-print("  - dendrogram.png: Dendrogramme initial")
-print("  - linkage_methods.png: Comparaison des méthodes de liaison")
-print("  - optimal_clusters.png: Analyse du nombre optimal de clusters")
-print("  - tsne_clusters.png: Visualisation des clusters avec t-SNE")
-print("  - cluster_analysis.txt: Analyse détaillée des clusters")
+print("  - dendrogramme_complet_avec_mots.png: Dendrogramme avec heatmap")
+print("  - dendrogramme_avec_mots_texte.png: Dendrogramme avec mots en texte")
+print("  - analyse_clusters_complete.txt: Analyse détaillée automatique")
+print("  - tsne_clusters_automatiques.png: Visualisation t-SNE")
+print("\nCaractéristiques du clustering automatique:")
+print(f"  - {optimal_clusters} clusters déterminés automatiquement")
+print("  - Aucune supervision manuelle")
+print("  - Basé sur la minimisation de la distance intra-cluster")
 print("\nVous pouvez maintenant utiliser ces visualisations pour votre présentation!")
