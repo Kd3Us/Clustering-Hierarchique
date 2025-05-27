@@ -6,7 +6,7 @@ from datasets import load_dataset
 import re
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import AgglomerativeClustering
-from scipy.cluster.hierarchy import dendrogram, linkage, fcluster
+from scipy.cluster.hierarchy import dendrogram, linkage, fcluster, set_link_color_palette
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.manifold import TSNE
 import matplotlib.cm as cm
@@ -39,7 +39,7 @@ def clean_text(text):
 
 def create_improved_dendrogram_with_heatmap(Z, final_clusters, top_words_per_cluster, optimal_clusters, sample_df):
     """
-    Crée un dendrogramme amélioré avec heatmap des intensités comme l'original
+    Crée un dendrogramme amélioré avec heatmap des intensités et branches colorées
     """
     
     # Définir des noms logiques pour les clusters basés sur l'analyse
@@ -53,8 +53,11 @@ def create_improved_dendrogram_with_heatmap(Z, final_clusters, top_words_per_clu
         7: "Problèmes de Sommeil & Stress"
     }
     
-    # Palette de couleurs pour chaque cluster
-    colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#F0A500']
+    # Palette de couleurs pour chaque cluster (modifiée selon demande)
+    colors = ['#FF6B6B', '#25201F', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#000000']
+    
+    # NOUVEAUTÉ: Configuration des couleurs des branches
+    set_link_color_palette(colors[:optimal_clusters])
     
     # Extraire les mots caractéristiques pour chaque cluster
     n_top_words = 10
@@ -82,26 +85,19 @@ def create_improved_dendrogram_with_heatmap(Z, final_clusters, top_words_per_clu
     ax1 = plt.subplot2grid((10, 10), (0, 0), colspan=7, rowspan=9)  # Dendrogramme prend 70% largeur
     ax2 = plt.subplot2grid((10, 10), (0, 8), colspan=2, rowspan=7)  # Heatmap plus petite et décalée
     
-    # Sous-graphique 1: Dendrogramme
-    threshold = 0.8 * max(Z[:, 2])
+    # NOUVEAUTÉ: Calcul du seuil pour la coloration des branches
+    threshold = Z[-optimal_clusters+1, 2] if len(Z) >= optimal_clusters-1 else Z[-1, 2] * 0.7
     
-    # Créer le dendrogramme avec couleurs automatiques
+    # Créer le dendrogramme avec branches colorées
     dend = dendrogram(
         Z,
         labels=unique_labels,
-        leaf_rotation=0,
+        leaf_rotation=90,  # MODIFIÉ: Labels verticaux
         leaf_font_size=10,  # Police réduite
         ax=ax1,
-        color_threshold=threshold,
-        above_threshold_color='lightgray'
+        color_threshold=threshold,        # NOUVEAUTÉ: Seuil pour coloration des branches
+        above_threshold_color='lightgray' # NOUVEAUTÉ: Couleur branches hautes
     )
-    
-    # Modifier les couleurs des branches
-    lines = ax1.get_lines()
-    for i, line in enumerate(lines):
-        color_index = i % len(colors)
-        line.set_color(colors[color_index])
-        line.set_linewidth(2)
     
     # Colorer les labels avec plus d'espacement
     xlabels = ax1.get_xticklabels()
@@ -116,10 +112,15 @@ def create_improved_dendrogram_with_heatmap(Z, final_clusters, top_words_per_clu
             label.set_fontweight('bold')
             label.set_fontsize(10)  # Police plus petite
     
-    ax1.set_title('Classification Hiérarchique des Confessions Reddit', fontsize=16, pad=25)
+    ax1.set_title('Classification Hiérarchique des Confessions Reddit\n(avec branches colorées)', fontsize=16, pad=25)
     ax1.set_xlabel('Groupes Thématiques', fontsize=12, labelpad=25)  # Plus d'espace
     ax1.set_ylabel('Distance de Dissimilarité', fontsize=12)
     ax1.tick_params(axis='x', which='major', labelsize=9, pad=20)  # Plus d'espace sous les labels
+    
+    # Ajouter une ligne de seuil
+    ax1.axhline(y=threshold, color='red', linestyle=':', alpha=0.8, 
+               label=f'Seuil de coupure ({optimal_clusters} clusters)')
+    ax1.legend(loc='upper right')
     
     # Sous-graphique 2: Heatmap avec beaucoup plus d'espace
     im = ax2.imshow(cluster_word_matrix, cmap='YlOrRd', aspect='auto')
@@ -152,14 +153,14 @@ def create_improved_dendrogram_with_heatmap(Z, final_clusters, top_words_per_clu
         hspace=0.3    # Espace vertical
     )
     
-    plt.savefig('dendrogramme_presentation_avec_intensite.png', dpi=300, bbox_inches='tight')
-    print("Dendrogramme avec intensités créé: dendrogramme_presentation_avec_intensite.png")
+    plt.savefig('dendrogramme_presentation_avec_intensite_branches_colorees.png', dpi=300, bbox_inches='tight')
+    print("Dendrogramme avec intensités et branches colorées créé: dendrogramme_presentation_avec_intensite_branches_colorees.png")
     
     return fig
 
 def create_improved_dendrogram_with_legend(Z, final_clusters, top_words_per_cluster, optimal_clusters, sample_df):
     """
-    Crée un dendrogramme amélioré avec légende des mots (sans intensités)
+    Crée un dendrogramme amélioré avec légende des mots et branches colorées - VERSION PROPRE
     """
     
     cluster_names = {
@@ -172,90 +173,125 @@ def create_improved_dendrogram_with_legend(Z, final_clusters, top_words_per_clus
         7: "Problèmes de Sommeil & Stress"
     }
     
-    # Palette de couleurs distinctes
-    colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#F0A500']
+    # Palette de couleurs distinctes (modifiée selon demande)
+    colors = ['#FF6B6B', '#25201F', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#000000']
     cluster_colors = {i+1: colors[i % len(colors)] for i in range(optimal_clusters)}
     
-    # Créer des labels uniques par cluster
+    # NOUVEAUTÉ: Configuration des couleurs des branches
+    set_link_color_palette(colors[:optimal_clusters])
+    
+    # Créer des labels uniques par cluster AVEC NOMS COURTS pour éviter superposition
     unique_labels = []
     cluster_seen = set()
+    short_names = {
+        "Relations & Émotions": "Relations",
+        "Famille & Parents": "Famille", 
+        "Vie Quotidienne": "Quotidien",
+        "Développement Personnel": "Développement",
+        "Relations Sociales": "Social",
+        "Estime de Soi": "Estime",
+        "Problèmes de Sommeil & Stress": "Sommeil"
+    }
+    
     for cluster in final_clusters:
         if cluster not in cluster_seen:
-            unique_labels.append(cluster_names.get(cluster, f'Cluster {cluster}'))
+            full_name = cluster_names.get(cluster, f'Cluster {cluster}')
+            short_name = short_names.get(full_name, full_name)
+            unique_labels.append(short_name)
             cluster_seen.add(cluster)
         else:
             unique_labels.append('')  # Label vide pour les répétitions
     
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(22, 12), 
-                                   gridspec_kw={'width_ratios': [3, 2], 'wspace': 0.1})
+    # Figure encore plus grande avec meilleur ratio
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(26, 14), 
+                                   gridspec_kw={'width_ratios': [2.5, 1.5], 'wspace': 0.4})
     
-    # Dendrogramme avec couleurs et labels horizontaux
+    # NOUVEAUTÉ: Calcul du seuil pour la coloration des branches
+    threshold = Z[-optimal_clusters+1, 2] if len(Z) >= optimal_clusters-1 else Z[-1, 2] * 0.7
+    
+    # Dendrogramme avec couleurs et labels verticaux + branches colorées
     dend = dendrogram(
         Z,
         labels=unique_labels,
-        leaf_rotation=0,  # Horizontal
-        leaf_font_size=11,
+        leaf_rotation=90,  # MODIFIÉ: Labels verticaux
+        leaf_font_size=9,   # Police plus petite pour éviter superposition
         ax=ax1,
-        color_threshold=0.7*max(Z[:,2]),
-        above_threshold_color='gray'
+        color_threshold=threshold,        # NOUVEAUTÉ: Seuil pour coloration des branches
+        above_threshold_color='lightgray' # NOUVEAUTÉ: Couleur branches hautes
     )
     
-    # Appliquer les couleurs aux labels
+    # Appliquer les couleurs aux labels avec mapping des noms courts
     xlabels = ax1.get_xticklabels()
-    cluster_color_map = {
-        "Relations & Émotions": colors[0],
-        "Famille & Parents": colors[1], 
-        "Vie Quotidienne": colors[2],
-        "Développement Personnel": colors[3],
-        "Relations Sociales": colors[4],
-        "Estime de Soi": colors[5],
-        "Problèmes de Sommeil & Stress": colors[6]
+    short_to_color_map = {
+        "Relations": colors[0],      # #FF6B6B
+        "Famille": colors[1],        # #25201F  
+        "Quotidien": colors[2],      # #45B7D1
+        "Développement": colors[3],  # #96CEB4
+        "Social": colors[4],         # #FFEAA7
+        "Estime": colors[5],         # #DDA0DD
+        "Sommeil": colors[6]         # #000000
     }
     
     for label in xlabels:
-        if label.get_text() in cluster_color_map:
-            label.set_color(cluster_color_map[label.get_text()])
+        if label.get_text() in short_to_color_map:
+            label.set_color(short_to_color_map[label.get_text()])
             label.set_fontweight('bold')
     
-    ax1.set_title('Classification Hiérarchique des Confessions Reddit', fontsize=16, pad=20)
-    ax1.set_xlabel('Groupes Thématiques', fontsize=12)
+    ax1.set_title('Classification Hiérarchique des Confessions Reddit\n(avec branches colorées)', 
+                  fontsize=16, pad=25)
+    ax1.set_xlabel('Groupes Thématiques', fontsize=12, labelpad=30)  # Encore plus d'espace
     ax1.set_ylabel('Distance de Dissimilarité', fontsize=12)
     
-    # Améliorer l'espacement des labels horizontaux
-    ax1.tick_params(axis='x', which='major', labelsize=11, pad=10)
+    # Ajouter une ligne de seuil
+    ax1.axhline(y=threshold, color='red', linestyle=':', alpha=0.8, 
+               label=f'Seuil de coupure ({optimal_clusters} clusters)')
+    ax1.legend(loc='upper right')
     
-    # Légende avec mots-clés
+    # Espacement optimal pour les labels verticaux
+    ax1.tick_params(axis='x', which='major', labelsize=9, pad=20)
+    
+    # Légende avec mots-clés - VERSION COMPACTE
     ax2.axis('off')
-    ax2.set_title('Caractéristiques des Groupes', fontsize=16, pad=20)
+    ax2.set_title('Caractéristiques des Groupes', fontsize=16, pad=25)
     
     y_pos = 0.95
+    y_step = 0.135  # Espacement uniforme entre les groupes
+    
     for cluster_id in range(1, optimal_clusters + 1):
         if cluster_id in top_words_per_cluster:
             color = cluster_colors[cluster_id]
             cluster_name = cluster_names.get(cluster_id, f'Cluster {cluster_id}')
             
-            # Rectangle coloré
-            rect = plt.Rectangle((0.02, y_pos-0.06), 0.05, 0.08, 
+            # Rectangle coloré plus petit
+            rect = plt.Rectangle((0.02, y_pos-0.05), 0.04, 0.06, 
                                facecolor=color, alpha=0.8, transform=ax2.transAxes)
             ax2.add_patch(rect)
             
-            # Titre du cluster
-            ax2.text(0.12, y_pos-0.02, cluster_name, 
-                    fontsize=14, fontweight='bold', transform=ax2.transAxes)
+            # Titre du cluster avec police optimisée
+            ax2.text(0.1, y_pos-0.02, cluster_name, 
+                    fontsize=13, fontweight='bold', transform=ax2.transAxes)
             
-            # Mots du cluster (sans valeurs)
-            words_text = []
-            for word, score in top_words_per_cluster[cluster_id][:6]:
-                words_text.append(f'• {word}')
+            # Mots du cluster en format compact (sur 2 lignes max)
+            words = [word for word, score in top_words_per_cluster[cluster_id][:6]]
+            if len(words) > 3:
+                line1 = ' • '.join(words[:3])
+                line2 = ' • '.join(words[3:])
+                words_str = f"• {line1}\n• {line2}"
+            else:
+                words_str = ' • '.join([f"{word}" for word in words])
+                words_str = f"• {words_str}"
             
-            words_str = '\n'.join(words_text)
-            ax2.text(0.12, y_pos-0.05, words_str, 
-                    fontsize=10, transform=ax2.transAxes, verticalalignment='top')
+            ax2.text(0.1, y_pos-0.045, words_str, 
+                    fontsize=9, transform=ax2.transAxes, verticalalignment='top')
             
-            y_pos -= 0.13
+            y_pos -= y_step
     
-    plt.savefig('dendrogramme_presentation_avec_legende.png', dpi=300, bbox_inches='tight')
-    print("Dendrogramme avec légende créé: dendrogramme_presentation_avec_legende.png")
+    # Ajustement final des marges
+    plt.subplots_adjust(left=0.08, right=0.95, top=0.92, bottom=0.15)
+    
+    plt.savefig('dendrogramme_presentation_avec_legende_branches_colorees.png', dpi=300, 
+                bbox_inches='tight', pad_inches=0.4)  # Plus de marge autour de l'image
+    print("Dendrogramme avec légende et branches colorées créé: dendrogramme_presentation_avec_legende_branches_colorees.png")
     
     return fig
 
@@ -279,8 +315,8 @@ def create_cluster_summary_table(top_words_per_cluster, final_clusters, sample_d
     fig, ax = plt.subplots(figsize=(16, 10))
     ax.axis('off')
     
-    # Couleurs en format matplotlib
-    colors_list = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#F0A500']
+    # Couleurs en format matplotlib (modifiées selon demande)
+    colors_list = ['#FF6B6B', '#25201F', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#000000']
     
     # Données pour le tableau
     table_data = []
@@ -434,13 +470,13 @@ for cluster_id in range(1, optimal_clusters + 1):
         
         top_words_per_cluster[cluster_id] = list(zip(top_words, top_scores))
 
-# 4. CRÉATION DES DENDROGRAMMES AMÉLIORÉS
-print("\nÉtape 4: Création des dendrogrammes améliorés")
+# 4. CRÉATION DES DENDROGRAMMES AMÉLIORÉS AVEC BRANCHES COLORÉES
+print("\nÉtape 4: Création des dendrogrammes améliorés avec branches colorées")
 
-# Version avec heatmap des intensités (comme l'original)
+# Version avec heatmap des intensités ET branches colorées
 fig1 = create_improved_dendrogram_with_heatmap(Z, final_clusters, top_words_per_cluster, optimal_clusters, sample_df)
 
-# Version avec légende colorée (sans intensités)
+# Version avec légende colorée ET branches colorées
 fig2 = create_improved_dendrogram_with_legend(Z, final_clusters, top_words_per_cluster, optimal_clusters, sample_df)
 
 # Tableau récapitulatif avec couleurs corrigées
@@ -500,8 +536,8 @@ X_tsne = tsne.fit_transform(X_dense)
 
 plt.figure(figsize=(12, 8))
 
-# Utiliser les mêmes couleurs
-colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#F0A500']
+# Utiliser les mêmes couleurs (modifiées selon demande)
+colors = ['#FF6B6B', '#25201F', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#000000']
 color_map = {i+1: colors[i % len(colors)] for i in range(optimal_clusters)}
 
 for cluster_id in range(1, optimal_clusters + 1):
@@ -547,17 +583,51 @@ plt.savefig('tsne_clusters_presentation.png', dpi=300, bbox_inches='tight')
 print("Visualisation t-SNE créée: tsne_clusters_presentation.png")
 
 print("\n" + "="*70)
-print("ANALYSE TERMINÉE AVEC SUCCÈS!")
+print("ANALYSE TERMINÉE AVEC SUCCÈS AVEC BRANCHES COLORÉES!")
 print("="*70)
 print("Fichiers générés:")
-print("  - dendrogramme_presentation_avec_intensite.png: Avec heatmap d'intensité")
-print("  - dendrogramme_presentation_avec_legende.png: Avec légende colorée")
+print("  - dendrogramme_presentation_avec_intensite_branches_colorees.png: Avec heatmap et branches colorées")
+print("  - dendrogramme_presentation_avec_legende_branches_colorees.png: Avec légende et branches colorées")
 print("  - tableau_clusters_presentation_couleurs.png: Tableau avec couleurs corrigées")
 print("  - tsne_clusters_presentation.png: Visualisation t-SNE")
 print("  - analyse_clusters_complete.txt: Analyse détaillée")
-print("\nAméliorations apportées:")
+print("\nNouvelles améliorations:")
+print("  ✅ BRANCHES COLORÉES selon les clusters!")
+print("  ✅ Ligne de seuil de coupure visible")
+print("  ✅ Cohérence totale des couleurs (branches + labels + légendes)")
 print("  ✅ Conservation des degrés d'intensité (heatmap)")
 print("  ✅ Couleurs corrigées dans le tableau")
 print("  ✅ Noms logiques des clusters")
 print("  ✅ Deux versions du dendrogramme (avec/sans intensités)")
 print("  ✅ Interface professionnelle pour présentation")
+print("  ✅ Lignes de seuil pour visualiser la coupure automatique")
+
+print("\n🎨 GUIDE DES COULEURS UTILISÉES:")
+colors_guide = ['#FF6B6B', '#25201F', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#000000']
+cluster_names_guide = {
+    1: "Relations & Émotions",
+    2: "Famille & Parents", 
+    3: "Vie Quotidienne",
+    4: "Développement Personnel",
+    5: "Relations Sociales",
+    6: "Estime de Soi",
+    7: "Problèmes de Sommeil & Stress"
+}
+
+for i in range(min(optimal_clusters, 7)):
+    print(f"  🔸 {colors_guide[i]} : {cluster_names_guide.get(i+1, f'Cluster {i+1}')}")
+
+print(f"\n📊 RÉSUMÉ STATISTIQUE:")
+print(f"  • Nombre total d'échantillons analysés: {sample_size}")
+print(f"  • Nombre de clusters identifiés automatiquement: {optimal_clusters}")
+print(f"  • Nombre de caractéristiques TF-IDF: {X.shape[1]}")
+print(f"  • Méthode de liaison: Ward")
+print(f"  • Seuil de coupure automatique calculé")
+
+# Afficher la répartition par cluster
+print(f"\n📈 RÉPARTITION DES CONFESSIONS PAR CLUSTER:")
+for cluster_id in range(1, optimal_clusters + 1):
+    count = sum(final_clusters == cluster_id)
+    percentage = (count / sample_size) * 100
+    cluster_name = cluster_names_guide.get(cluster_id, f'Cluster {cluster_id}')
+    print(f"  • {cluster_name}: {count} confessions ({percentage:.1f}%)")
