@@ -4,8 +4,8 @@ ANALYSE AUTOMATIQUE DES CLUSTERS DE CONFESSIONS REDDIT
 Nombre de clusters déterminé automatiquement: 7
 
 
-CLUSTER 1:
-------------------------------
+CLUSTER 1 - Relations & Émotions:
+--------------------------------------------------
 Nombre de confessions: 14
 
 Mots caractéristiques:
@@ -41,8 +41,8 @@ She says our flat Is disgusting, does nothing to help, Everything Is on me. She'
 
 She says she's ugly because she's fat. Yes, you got a bit of bodywright, but ur fucking beautiful, stop fucking bitching! I honestly can't anymore, I'm get...
 
-CLUSTER 2:
-------------------------------
+CLUSTER 2 - Famille & Parents:
+--------------------------------------------------
 Nombre de confessions: 3
 
 Mots caractéristiques:
@@ -65,8 +65,8 @@ Titres des confessions:
 Exemple de confession:
 At the time my dad had been laid off, my mom couldn't work. Social assistance gave us barely enough to pay rent and hydro, to even eat every day my dad had to do under the table work and we had no money for breakfast or lunch food. So I took it from the school cafeteria, almost got caught once.
 
-CLUSTER 3:
-------------------------------
+CLUSTER 3 - Vie Quotidienne:
+--------------------------------------------------
 Nombre de confessions: 10
 
 Mots caractéristiques:
@@ -96,8 +96,8 @@ Titres des confessions:
 Exemple de confession:
 the title is fairly self explanatory. i have to perform a song for my class on monday, but my voice is completely gone. my voice keeps cracking, and i cant sing to save my life. i’ve tried almost everything i can think of to get rid of it, but nothing’s working. any tips or motivation of any kind wo...
 
-CLUSTER 4:
-------------------------------
+CLUSTER 4 - Développement Personnel:
+--------------------------------------------------
 Nombre de confessions: 2
 
 Mots caractéristiques:
@@ -127,8 +127,8 @@ I'm not focusing on the miscommunication, just on the solutions.
 
 I'm not focusing o...
 
-CLUSTER 5:
-------------------------------
+CLUSTER 5 - Relations Sociales:
+--------------------------------------------------
 Nombre de confessions: 6
 
 Mots caractéristiques:
@@ -156,8 +156,8 @@ when my wife comes home from work and starts grilling me on everything that tran
 
 If she walks in while I’m feeding him and criticizes t he way I’m holding the bottle it...
 
-CLUSTER 6:
-------------------------------
+CLUSTER 6 - Estime de Soi:
+--------------------------------------------------
 Nombre de confessions: 5
 
 Mots caractéristiques:
@@ -182,8 +182,8 @@ Titres des confessions:
 Exemple de confession:
 for me, my virginity was very sacred, i had kept it intact for someone special. and i thought he was, but he turned out to be a cheat, and a very very very very shitty person. i regret ever saying yes to sex. i feel so used and ugh. its my fault. i should've stuck to my ideology of preserving my vir...
 
-CLUSTER 7:
-------------------------------
+CLUSTER 7 - Problèmes de Sommeil & Stress:
+--------------------------------------------------
 Nombre de confessions: 10
 
 Mots caractéristiques:
