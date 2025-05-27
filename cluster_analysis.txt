@@ -1,58 +1,51 @@
-ANALYSE DES CLUSTERS (7 groupes)
+ANALYSE DES CLUSTERS (6 groupes)
 ==================================================
 
 CLUSTER 1:
-Taille: 2 confessions
-Mots-clés: im, school, long, right, better
+Taille: 452 confessions
+Mots-clés: shit, day, think, thats, like
 Exemples de titres:
-  - I'm working it out
-  - I feel embarrassed being single in high school
+  - All I want is to be able to afford a one bedroom.
+  - Can't wait to see Ford make Electric Trucks a frequent, and costly vehicle type to repair.
+  - Pill Poppers
 
 CLUSTER 2:
-Taille: 6 confessions
-Mots-clés: im, things, like, dont, parents
-Exemples de titres:
-  - My wife does not trust me to take care of the baby on my own, and it hurts.
-  - My crush and my weight
-  - i’m upset
-
-CLUSTER 3:
-Taille: 5 confessions
-Mots-clés: like, feel, dont, good, im
-Exemples de titres:
-  - i gave consent to the person i knew, not the person he actually was; a fucking cheat, he makes me puke.
-  - I'm not sure if I want the relationship I'm in and I feel like a terrible person because of it
-  - I think I have ADHD
-
-CLUSTER 4:
-Taille: 13 confessions
-Mots-clés: feel, like, years, im, doesnt
-Exemples de titres:
-  - I can't hardly sleep anymore...
-  - I stole something
-  - I’m suffering from horrible nightmares and I feel totally overwhelmed
-
-CLUSTER 5:
-Taille: 12 confessions
-Mots-clés: really, want, hate, know, fucking
+Taille: 1114 confessions
+Mots-clés: im, dont, want, like, fucking
 Exemples de titres:
   - My girlfriend Is not happy, althought I do what I can
-  - A year without instagram and Facebook saved my sanity.
-  - i could but theres no reason to
-
-CLUSTER 6:
-Taille: 3 confessions
-Mots-clés: dad, mom, family, work, parents
-Exemples de titres:
-  - In grade 10 I had to steal food from the school cafeteria.
-  - If you find a lump, don't bloody ignore it!
-  - I feel more comfortable talking to my friends than my family for values or feelings .
-
-CLUSTER 7:
-Taille: 9 confessions
-Mots-clés: order, make, ive, kind, im
-Exemples de titres:
   - i have to perform for my theatre class on monday, but i’ve completely lost my voice
   - Clothing size charts literally lie and it’s infuriating.
-  - All I want is to be able to afford a one bedroom.
+
+CLUSTER 3:
+Taille: 907 confessions
+Mots-clés: im, dont, like, feel, know
+Exemples de titres:
+  - I can't hardly sleep anymore...
+  - I’m suffering from horrible nightmares and I feel totally overwhelmed
+  - I'm not sure if I want the relationship I'm in and I feel like a terrible person because of it
+
+CLUSTER 4:
+Taille: 399 confessions
+Mots-clés: people, dont, like, im, life
+Exemples de titres:
+  - I'm not cut-out to be an immigrant child
+  - I hate my (former) classmate
+  - I detest when news organization use the term “resurfaced” when there is backlash to someone’s past.
+
+CLUSTER 5:
+Taille: 180 confessions
+Mots-clés: im, life, going, dont, want
+Exemples de titres:
+  - My crush and my weight
+  - I'm working it out
+  - I'm so tired
+
+CLUSTER 6:
+Taille: 1948 confessions
+Mots-clés: im, like, dont, feel, know
+Exemples de titres:
+  - A year without instagram and Facebook saved my sanity.
+  - i could but theres no reason to
+  - My Wife Is Emotionally Distant To Me
 

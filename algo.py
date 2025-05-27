@@ -260,7 +260,7 @@ dataset = load_dataset("SocialGrep/one-million-reddit-confessions")
 df = pd.DataFrame(dataset['train'])
 df = df[~df['selftext'].isin(['[removed]', '[deleted]', None, ''])]
 
-sample_size = 50
+sample_size = 5000
 sample_df = df.sample(sample_size, random_state=42).reset_index(drop=True)
 sample_df['clean_text'] = sample_df['selftext'].apply(clean_text)
 
